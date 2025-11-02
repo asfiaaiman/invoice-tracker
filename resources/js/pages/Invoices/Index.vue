@@ -10,8 +10,10 @@ import { Plus, Download, Edit, Trash2 } from 'lucide-vue-next';
 interface Props {
     invoices: any;
     agencies: Array<{ id: number; name: string }>;
+    clients: Array<{ id: number; name: string }>;
     filters: {
         agency_id?: number;
+        client_id?: number;
         search?: string;
         start_date?: string;
         end_date?: string;
@@ -26,6 +28,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const filterForm = useForm({
     agency_id: props.filters.agency_id || '',
+    client_id: props.filters.client_id || '',
     search: props.filters.search || '',
     start_date: props.filters.start_date || '',
     end_date: props.filters.end_date || '',
@@ -60,12 +63,20 @@ function deleteInvoice(id: number) {
             </div>
 
             <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
-                <form @submit.prevent="applyFilters" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <form @submit.prevent="applyFilters" class="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
-                        <select v-model="filterForm.agency_id" class="w-full px-3 py-2 border rounded-md">
+                        <select v-model="filterForm.agency_id" class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
                             <option value="">All Agencies</option>
                             <option v-for="agency in agencies" :key="agency.id" :value="agency.id">
                                 {{ agency.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div>
+                        <select v-model="filterForm.client_id" class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                            <option value="">All Clients</option>
+                            <option v-for="client in clients" :key="client.id" :value="client.id">
+                                {{ client.name }}
                             </option>
                         </select>
                     </div>
@@ -78,7 +89,7 @@ function deleteInvoice(id: number) {
                     <div>
                         <Input v-model="filterForm.end_date" type="date" placeholder="End Date" />
                     </div>
-                    <div class="md:col-span-4">
+                    <div class="md:col-span-5">
                         <Button type="submit">Filter</Button>
                     </div>
                 </form>
@@ -97,12 +108,15 @@ function deleteInvoice(id: number) {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                        <tr v-for="invoice in invoices.data" :key="invoice.id" class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <tr v-if="!invoices?.data || invoices?.data.length === 0">
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">No invoices found.</td>
+                        </tr>
+                        <tr v-for="invoice in invoices?.data" :key="invoice.id" class="hover:bg-gray-50 dark:hover:bg-gray-700">
                             <td class="px-6 py-4 whitespace-nowrap">{{ invoice.invoice_number }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ invoice.agency.name }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ invoice.client.name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ invoice.agency?.name || '-' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ invoice.client?.name || '-' }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">{{ invoice.issue_date }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ invoice.total.toFixed(2) }} RSD</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ Number(invoice.total || 0).toFixed(2) }} RSD</td>
                             <td class="px-6 py-4 whitespace-nowrap text-right space-x-2">
                                 <a :href="`/invoices/${invoice.id}/pdf`" target="_blank" class="inline-block">
                                     <Button variant="outline" size="sm">

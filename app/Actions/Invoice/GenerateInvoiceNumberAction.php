@@ -21,20 +21,27 @@ class GenerateInvoiceNumberAction
 
     private function getLastInvoiceNumber(int $agencyId, int $year): int
     {
-        $lastInvoice = \App\Models\Invoice::where('agency_id', $agencyId)
+        $agency = Agency::findOrFail($agencyId);
+        $prefix = $agency->invoice_number_prefix ?? 'INV';
+        
+        $invoices = \App\Models\Invoice::withTrashed()
+            ->where('agency_id', $agencyId)
             ->whereYear('issue_date', $year)
+            ->where('invoice_number', 'like', $prefix . '-' . $year . '-%')
             ->orderBy('issue_date', 'desc')
             ->orderBy('id', 'desc')
-            ->first();
+            ->get();
 
-        if (!$lastInvoice) {
-            return 0;
+        $maxNumber = 0;
+        foreach ($invoices as $invoice) {
+            $parts = explode('-', $invoice->invoice_number);
+            $number = (int) end($parts);
+            if ($number > $maxNumber) {
+                $maxNumber = $number;
+            }
         }
 
-        $parts = explode('-', $lastInvoice->invoice_number);
-        $number = (int) end($parts);
-
-        return $number;
+        return $maxNumber;
     }
 }
 

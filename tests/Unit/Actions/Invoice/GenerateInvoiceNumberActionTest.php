@@ -90,3 +90,21 @@ test('generates invoice numbers with different prefixes for different agencies',
     expect($number2)->toStartWith('AG2-');
 });
 
+test('invoice number generation includes soft deleted invoices in sequence', function () {
+    $agency = Agency::factory()->create(['invoice_number_prefix' => 'TST']);
+    $client = Client::factory()->create();
+    $client->agencies()->attach($agency->id);
+
+    Invoice::factory()->create([
+        'agency_id' => $agency->id,
+        'client_id' => $client->id,
+        'invoice_number' => 'TST-' . now()->year . '-0001',
+        'issue_date' => now(),
+    ])->delete(); // Soft delete
+
+    $action = new GenerateInvoiceNumberAction();
+    $number = $action->execute($agency->id);
+
+    expect($number)->toBe('TST-' . now()->year . '-0002'); // Should increment to 0002 since 0001 exists (soft deleted)
+});
+

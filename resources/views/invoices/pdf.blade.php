@@ -10,13 +10,16 @@
             font-size: 12px;
             margin: 0;
             padding: 20px;
+            color: #333;
         }
         .header {
             margin-bottom: 30px;
         }
         .header h1 {
             margin: 0;
-            font-size: 24px;
+            font-size: 28px;
+            color: #1a1a1a;
+            font-weight: bold;
         }
         .invoice-info {
             display: flex;
@@ -28,9 +31,11 @@
         }
         .section h3 {
             margin-top: 0;
-            font-size: 14px;
+            font-size: 16px;
             border-bottom: 2px solid #333;
             padding-bottom: 5px;
+            color: #1a1a1a;
+            font-weight: bold;
         }
         .items-table {
             width: 100%;
@@ -101,6 +106,15 @@
             @if($invoice->agency->country)
                 <p>{{ $invoice->agency->country }}</p>
             @endif
+            @if($invoice->agency->phone)
+                <p>Phone: {{ $invoice->agency->phone }}</p>
+            @endif
+            @if($invoice->agency->email)
+                <p>Email: {{ $invoice->agency->email }}</p>
+            @endif
+            @if($invoice->agency->website)
+                <p>Website: {{ $invoice->agency->website }}</p>
+            @endif
         </div>
 
         <div class="section">
@@ -138,14 +152,14 @@
                     <td>
                         @if($item->product)
                             <strong>{{ $item->product->name }}</strong>
-                        @endif
-                        @if($item->description)
-                            <br><small>{{ $item->description }}</small>
-                        @elseif(!$item->product && $item->description)
+                            @if($item->description)
+                                <br><small>{{ $item->description }}</small>
+                            @endif
+                        @elseif($item->description)
                             <strong>{{ $item->description }}</strong>
                         @endif
                     </td>
-                    <td class="text-right">{{ number_format($item->quantity, 2) }} @if($item->product && $item->product->unit){{ $item->product->unit }}@endif</td>
+                    <td class="text-right">{{ number_format($item->quantity, 2) }}@if($item->product && $item->product->unit) {{ $item->product->unit }}@endif</td>
                     <td class="text-right">{{ number_format($item->unit_price, 2) }} RSD</td>
                     <td class="text-right">{{ number_format($item->total, 2) }} RSD</td>
                 </tr>

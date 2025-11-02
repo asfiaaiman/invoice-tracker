@@ -9,12 +9,39 @@ import InputError from '@/components/InputError.vue';
 import FlashMessage from '@/components/FlashMessage.vue';
 import ValidationErrors from '@/components/ValidationErrors.vue';
 import { Plus, Trash2 } from 'lucide-vue-next';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 
 interface Props {
+    invoice: {
+        id: number;
+        agency_id: number;
+        client_id: number;
+        invoice_number: string;
+        issue_date: string;
+        due_date?: string;
+        notes?: string;
+        items: Array<{
+            id?: number;
+            product_id?: number;
+            description?: string;
+            quantity: number;
+            unit_price: number;
+        }>;
+    };
     agencies: Array<{
         id: number;
         name: string;
+    }>;
+    clients: Array<{
+        id: number;
+        name: string;
+    }>;
+    products: Array<{
+        id: number;
+        name: string;
+        code?: string;
+        price: number;
+        unit: string;
     }>;
 }
 
@@ -22,29 +49,27 @@ const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Invoices', href: '/invoices' },
-    { title: 'Create', href: '/invoices/create' },
+    { title: 'Edit', href: `/invoices/${props.invoice.id}/edit` },
 ];
 
 const form = useForm({
-    agency_id: '',
-    client_id: '',
-    invoice_number: '',
-    issue_date: new Date().toISOString().split('T')[0],
-    due_date: '',
-    notes: '',
-    items: [
-        {
-            product_id: '',
-            description: '',
-            quantity: 1,
-            unit_price: 0,
-            is_custom: false,
-        },
-    ],
+    agency_id: props.invoice.agency_id.toString(),
+    client_id: props.invoice.client_id.toString(),
+    invoice_number: props.invoice.invoice_number,
+    issue_date: props.invoice.issue_date,
+    due_date: props.invoice.due_date || '',
+    notes: props.invoice.notes || '',
+    items: props.invoice.items.map(item => ({
+        product_id: item.product_id?.toString() || '',
+        description: item.description || '',
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        is_custom: !item.product_id,
+    })),
 });
 
-const clients = ref<Array<{ id: number; name: string }>>([]);
-const products = ref<Array<{ id: number; name: string; code?: string; price: number; unit: string }>>([]);
+const clients = ref<Array<{ id: number; name: string }>>(props.clients);
+const products = ref<Array<{ id: number; name: string; code?: string; price: number; unit: string }>>(props.products);
 const isLoadingClients = ref(false);
 const isLoadingProducts = ref(false);
 
@@ -59,9 +84,6 @@ async function loadClients() {
         const response = await fetch(`/api/clients?agency_id=${form.agency_id}`);
         const data = await response.json();
         clients.value = data;
-        if (!form.client_id && data.length > 0) {
-            form.client_id = data[0].id.toString();
-        }
     } catch (error) {
         console.error('Failed to load clients:', error);
     } finally {
@@ -88,9 +110,18 @@ async function loadProducts() {
 }
 
 watch(() => form.agency_id, () => {
-    form.client_id = '';
-    loadClients();
-    loadProducts();
+    if (form.agency_id && form.agency_id !== props.invoice.agency_id.toString()) {
+        form.client_id = '';
+        loadClients();
+        loadProducts();
+    }
+});
+
+onMounted(() => {
+    if (form.agency_id) {
+        loadClients();
+        loadProducts();
+    }
 });
 
 function addItem() {
@@ -161,7 +192,7 @@ function submit() {
         }),
     };
     
-    form.transform(() => dataToSubmit).post('/invoices', {
+    form.transform(() => dataToSubmit).put(`/invoices/${props.invoice.id}`, {
         preserveScroll: true,
         onError: () => {
             // Errors will be shown via ValidationErrors component
@@ -171,11 +202,11 @@ function submit() {
 </script>
 
 <template>
-    <Head title="Create Invoice" />
+    <Head :title="`Edit Invoice - ${invoice.invoice_number}`" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-6 max-w-4xl">
             <FlashMessage />
-            <h1 class="text-2xl font-bold mb-6">Create Invoice</h1>
+            <h1 class="text-2xl font-bold mb-6">Edit Invoice {{ invoice.invoice_number }}</h1>
 
             <ValidationErrors :errors="form.errors" />
 
@@ -217,11 +248,11 @@ function submit() {
 
                 <div class="grid grid-cols-3 gap-4">
                     <div>
-                        <Label for="invoice_number">Invoice Number</Label>
+                        <Label for="invoice_number">Invoice Number *</Label>
                         <Input
                             id="invoice_number"
                             v-model="form.invoice_number"
-                            placeholder="Leave empty to auto-generate"
+                            required
                         />
                         <InputError :message="form.errors.invoice_number" />
                     </div>
@@ -293,7 +324,7 @@ function submit() {
 
                                 <div v-if="!item.is_custom" class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <Label :for="`product_${index}`">Product *</Label>
+                                        <Label :for="`product_${index}`">Product</Label>
                                         <select
                                             :id="`product_${index}`"
                                             :value="item.product_id"
@@ -398,8 +429,8 @@ function submit() {
                 </div>
 
                 <div class="flex gap-4">
-                    <Button type="submit" :disabled="form.processing">Create Invoice</Button>
-                    <Button type="button" variant="outline" @click="$inertia.visit('/invoices')">
+                    <Button type="submit" :disabled="form.processing">Update Invoice</Button>
+                    <Button type="button" variant="outline" @click="$inertia.visit(`/invoices/${invoice.id}`)">
                         Cancel
                     </Button>
                 </div>

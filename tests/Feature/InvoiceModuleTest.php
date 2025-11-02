@@ -126,6 +126,40 @@ test('authenticated users can filter invoices by date range', function () {
     );
 });
 
+test('authenticated users can filter invoices by client', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+    $client1 = Client::factory()->create(['name' => 'Client Alpha']);
+    $client2 = Client::factory()->create(['name' => 'Client Beta']);
+    $client1->agencies()->attach($agency->id);
+    $client2->agencies()->attach($agency->id);
+
+    Invoice::factory()->create([
+        'agency_id' => $agency->id,
+        'client_id' => $client1->id,
+        'invoice_number' => 'INV-2025-0001',
+    ]);
+    Invoice::factory()->create([
+        'agency_id' => $agency->id,
+        'client_id' => $client1->id,
+        'invoice_number' => 'INV-2025-0002',
+    ]);
+    Invoice::factory()->create([
+        'agency_id' => $agency->id,
+        'client_id' => $client2->id,
+        'invoice_number' => 'INV-2025-0003',
+    ]);
+
+    $response = $this->get("/invoices?client_id={$client1->id}");
+    $response->assertStatus(200);
+    $response->assertInertia(fn($page) => 
+        $page->component('Invoices/Index')
+             ->has('invoices.data', 2)
+    );
+});
+
 test('authenticated users can view create invoice page', function () {
     $user = User::factory()->create();
     $this->actingAs($user);
@@ -439,5 +473,283 @@ test('invoice numbers are unique per agency per year', function () {
 
     expect($invoice1->invoice_number)->toBe('INV-' . now()->year . '-0002');
     expect($invoice2->invoice_number)->toBe('INV-' . now()->year . '-0001');
+});
+
+test('authenticated users can create invoice with custom items', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+    $client = Client::factory()->create();
+    $client->agencies()->attach($agency->id);
+
+    $data = [
+        'agency_id' => $agency->id,
+        'client_id' => $client->id,
+        'invoice_number' => 'INV-2025-0001',
+        'issue_date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'product_id' => null,
+                'description' => 'Custom Service Item',
+                'quantity' => 2,
+                'unit_price' => 150.50,
+            ],
+        ],
+    ];
+
+    $response = $this->post('/invoices', $data);
+    $response->assertSessionHas('success');
+
+    $invoice = Invoice::where('invoice_number', 'INV-2025-0001')->first();
+    expect($invoice->items)->toHaveCount(1);
+    
+    $item = $invoice->items->first();
+    expect($item->product_id)->toBeNull();
+    expect($item->description)->toBe('Custom Service Item');
+    expect((float) $item->quantity)->toBe(2.0);
+    expect((float) $item->unit_price)->toBe(150.50);
+    expect((float) $item->total)->toBe(301.0);
+    expect((float) $invoice->subtotal)->toBe(301.0);
+    expect((float) $invoice->tax_amount)->toBe(60.20);
+    expect((float) $invoice->total)->toBe(361.20);
+});
+
+test('authenticated users can create invoice with mixed items', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+    $client = Client::factory()->create();
+    $client->agencies()->attach($agency->id);
+    $product = Product::factory()->create();
+    $product->agencies()->attach($agency->id, ['price' => 100]);
+
+    $data = [
+        'agency_id' => $agency->id,
+        'client_id' => $client->id,
+        'invoice_number' => 'INV-2025-0001',
+        'issue_date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'product_id' => $product->id,
+                'description' => 'Product from catalog',
+                'quantity' => 3,
+                'unit_price' => 100,
+            ],
+            [
+                'product_id' => null,
+                'description' => 'Custom consulting hours',
+                'quantity' => 5,
+                'unit_price' => 75.50,
+            ],
+        ],
+    ];
+
+    $response = $this->post('/invoices', $data);
+    $response->assertSessionHas('success');
+
+    $invoice = Invoice::where('invoice_number', 'INV-2025-0001')->first();
+    expect($invoice->items)->toHaveCount(2);
+    
+    $productItem = $invoice->items->firstWhere('product_id', $product->id);
+    expect($productItem)->not->toBeNull();
+    expect((float) $productItem->total)->toBe(300.0);
+    
+    $customItem = $invoice->items->firstWhere('product_id', null);
+    expect($customItem)->not->toBeNull();
+    expect($customItem->description)->toBe('Custom consulting hours');
+    expect((float) $customItem->total)->toBe(377.50);
+    
+    expect((float) $invoice->subtotal)->toBe(677.50);
+    expect((float) $invoice->tax_amount)->toBe(135.50);
+    expect((float) $invoice->total)->toBe(813.0);
+});
+
+test('invoice creation requires description for custom items', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+    $client = Client::factory()->create();
+    $client->agencies()->attach($agency->id);
+
+    $data = [
+        'agency_id' => $agency->id,
+        'client_id' => $client->id,
+        'invoice_number' => 'INV-2025-0001',
+        'issue_date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'product_id' => null,
+                'description' => '',
+                'quantity' => 2,
+                'unit_price' => 100,
+            ],
+        ],
+    ];
+
+    $response = $this->post('/invoices', $data);
+    $response->assertSessionHasErrors('items.0.description');
+});
+
+test('invoice creation allows items without product when description is provided', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+    $client = Client::factory()->create();
+    $client->agencies()->attach($agency->id);
+
+    $data = [
+        'agency_id' => $agency->id,
+        'client_id' => $client->id,
+        'invoice_number' => 'INV-2025-0001',
+        'issue_date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'product_id' => null,
+                'description' => 'Valid custom item',
+                'quantity' => 1,
+                'unit_price' => 50,
+            ],
+        ],
+    ];
+
+    $response = $this->post('/invoices', $data);
+    $response->assertSessionHas('success');
+    
+    $invoice = Invoice::where('invoice_number', 'INV-2025-0001')->first();
+    $item = $invoice->items->first();
+    expect($item->product_id)->toBeNull();
+    expect($item->description)->toBe('Valid custom item');
+});
+
+test('invoice can have multiple custom items', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+    $client = Client::factory()->create();
+    $client->agencies()->attach($agency->id);
+
+    $data = [
+        'agency_id' => $agency->id,
+        'client_id' => $client->id,
+        'invoice_number' => 'INV-2025-0001',
+        'issue_date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'product_id' => null,
+                'description' => 'First custom service',
+                'quantity' => 2,
+                'unit_price' => 100,
+            ],
+            [
+                'product_id' => null,
+                'description' => 'Second custom service',
+                'quantity' => 3,
+                'unit_price' => 150,
+            ],
+            [
+                'product_id' => null,
+                'description' => 'Third custom service',
+                'quantity' => 1,
+                'unit_price' => 200,
+            ],
+        ],
+    ];
+
+    $response = $this->post('/invoices', $data);
+    $response->assertSessionHas('success');
+
+    $invoice = Invoice::where('invoice_number', 'INV-2025-0001')->first();
+    expect($invoice->items)->toHaveCount(3);
+    
+    foreach ($invoice->items as $item) {
+        expect($item->product_id)->toBeNull();
+        expect($item->description)->not->toBeEmpty();
+    }
+    
+    expect((float) $invoice->subtotal)->toBe(850.0);
+    expect((float) $invoice->tax_amount)->toBe(170.0);
+    expect((float) $invoice->total)->toBe(1020.0);
+});
+
+test('invoice item product_id is optional', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+    $client = Client::factory()->create();
+    $client->agencies()->attach($agency->id);
+    $product = Product::factory()->create();
+    $product->agencies()->attach($agency->id, ['price' => 100]);
+
+    $data = [
+        'agency_id' => $agency->id,
+        'client_id' => $client->id,
+        'invoice_number' => 'INV-2025-0001',
+        'issue_date' => now()->format('Y-m-d'),
+        'items' => [
+            [
+                'product_id' => $product->id,
+                'quantity' => 1,
+                'unit_price' => 100,
+            ],
+            [
+                'description' => 'Custom item without product_id',
+                'quantity' => 1,
+                'unit_price' => 50,
+            ],
+        ],
+    ];
+
+    $response = $this->post('/invoices', $data);
+    $response->assertSessionHas('success');
+
+    $invoice = Invoice::where('invoice_number', 'INV-2025-0001')->first();
+    expect($invoice->items)->toHaveCount(2);
+    
+    $itemWithProduct = $invoice->items->firstWhere('product_id', $product->id);
+    expect($itemWithProduct)->not->toBeNull();
+    
+    $itemWithoutProduct = $invoice->items->firstWhere('product_id', null);
+    expect($itemWithoutProduct)->not->toBeNull();
+    expect($itemWithoutProduct->description)->toBe('Custom item without product_id');
+});
+
+test('invoice update supports custom items', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $invoice = Invoice::factory()->create();
+    $product = Product::factory()->create();
+    $product->agencies()->attach($invoice->agency_id, ['price' => 150]);
+
+    $response = $this->put("/invoices/{$invoice->id}", [
+        'agency_id' => $invoice->agency_id,
+        'client_id' => $invoice->client_id,
+        'invoice_number' => $invoice->invoice_number,
+        'issue_date' => $invoice->issue_date->format('Y-m-d'),
+        'items' => [
+            [
+                'product_id' => null,
+                'description' => 'Updated custom item',
+                'quantity' => 2,
+                'unit_price' => 75,
+            ],
+        ],
+    ]);
+
+    $response->assertSessionHas('success');
+    $invoice->refresh();
+    expect($invoice->items)->toHaveCount(1);
+    
+    $item = $invoice->items->first();
+    expect($item->product_id)->toBeNull();
+    expect($item->description)->toBe('Updated custom item');
+    expect((float) $item->quantity)->toBe(2.0);
+    expect((float) $item->unit_price)->toBe(75.0);
 });
 

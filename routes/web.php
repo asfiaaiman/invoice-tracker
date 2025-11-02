@@ -44,10 +44,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('api/products', function (\Illuminate\Http\Request $request) {
         $agencyId = $request->get('agency_id');
         if ($agencyId) {
-            return \App\Models\Product::whereHas('agencies', function ($q) use ($agencyId) {
+            $products = \App\Models\Product::whereHas('agencies', function ($q) use ($agencyId) {
                 $q->where('agencies.id', $agencyId)
                   ->where('agencies.is_active', true);
-            })->get();
+            })->with(['agencies' => function ($q) use ($agencyId) {
+                $q->where('agencies.id', $agencyId);
+            }])->get();
+            
+            return $products->map(function ($product) use ($agencyId) {
+                $agencyPivot = $product->agencies->firstWhere('id', $agencyId);
+                $price = $agencyPivot?->pivot->price ?? $product->price;
+                
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'code' => $product->code,
+                    'description' => $product->description,
+                    'price' => (float) $price,
+                    'unit' => $product->unit,
+                ];
+            });
         }
         return \App\Models\Product::all();
     })->name('api.products');

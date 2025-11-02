@@ -45,7 +45,8 @@ class CreateInvoiceAction
                 ]);
             }
 
-            $invoice->load(['agency', 'client', 'items.product']);
+            $invoice->load(['agency', 'client']);
+            $invoice->load(['items.product']);
 
             InvoiceCreated::dispatch($invoice);
 

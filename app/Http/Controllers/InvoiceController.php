@@ -51,13 +51,19 @@ class InvoiceController extends Controller
             $query->where('issue_date', '<=', $request->end_date);
         }
 
+        if ($request->has('client_id') && $request->client_id) {
+            $query->where('client_id', $request->client_id);
+        }
+
         $invoices = $query->latest('issue_date')->paginate(20)->withQueryString();
         $agencies = \App\Models\Agency::where('is_active', true)->get();
+        $clients = \App\Models\Client::orderBy('name')->get();
 
         return Inertia::render('Invoices/Index', [
             'invoices' => $invoices,
             'agencies' => $agencies,
-            'filters' => $request->only(['agency_id', 'search', 'start_date', 'end_date']),
+            'clients' => $clients,
+            'filters' => $request->only(['agency_id', 'client_id', 'search', 'start_date', 'end_date']),
         ]);
     }
 
@@ -103,7 +109,10 @@ class InvoiceController extends Controller
     public function edit(Invoice $invoice): Response
     {
         $agencies = \App\Models\Agency::where('is_active', true)->get();
-        $invoice->load(['agency', 'client', 'items.product']);
+        $invoice->load(['agency', 'client']);
+        $invoice->load(['items' => function ($query) {
+            $query->with('product');
+        }]);
 
         $clients = \App\Models\Client::whereHas('agencies', function ($q) use ($invoice) {
             $q->where('agencies.id', $invoice->agency_id);
@@ -111,7 +120,23 @@ class InvoiceController extends Controller
 
         $products = \App\Models\Product::whereHas('agencies', function ($q) use ($invoice) {
             $q->where('agencies.id', $invoice->agency_id);
-        })->get();
+        })->with(['agencies' => function ($q) use ($invoice) {
+            $q->where('agencies.id', $invoice->agency_id);
+        }])->get();
+
+        $products = $products->map(function ($product) use ($invoice) {
+            $agencyPivot = $product->agencies->firstWhere('id', $invoice->agency_id);
+            $price = $agencyPivot?->pivot->price ?? $product->price;
+            
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'code' => $product->code,
+                'description' => $product->description,
+                'price' => (float) $price,
+                'unit' => $product->unit,
+            ];
+        });
 
         return Inertia::render('Invoices/Edit', [
             'invoice' => $invoice,
