@@ -23,6 +23,10 @@ class StoreAgencyRequest extends FormRequest
             'city' => ['nullable', 'string', 'max:255'],
             'zip_code' => ['nullable', 'string', 'max:20'],
             'country' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'website' => ['nullable', 'url', 'max:255'],
+            'invoice_number_prefix' => ['nullable', 'string', 'max:20'],
             'is_active' => ['nullable', 'boolean'],
         ];
     }

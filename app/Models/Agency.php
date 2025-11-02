@@ -17,6 +17,10 @@ class Agency extends Model
         'city',
         'zip_code',
         'country',
+        'email',
+        'phone',
+        'website',
+        'invoice_number_prefix',
         'is_active',
     ];
 

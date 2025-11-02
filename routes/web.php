@@ -14,6 +14,7 @@ Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'inde
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('agencies', \App\Http\Controllers\AgencyController::class);
+    Route::post('agencies/{agency}/toggle-status', [\App\Http\Controllers\AgencyController::class, 'toggleStatus'])->name('agencies.toggle-status');
     Route::resource('clients', \App\Http\Controllers\ClientController::class);
     Route::resource('products', \App\Http\Controllers\ProductController::class);
     Route::resource('invoices', \App\Http\Controllers\InvoiceController::class);
@@ -25,6 +26,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     Route::get('settings/application', [\App\Http\Controllers\Settings\ApplicationSettingsController::class, 'index'])->name('settings.application');
     Route::post('settings/application', [\App\Http\Controllers\Settings\ApplicationSettingsController::class, 'update'])->name('settings.application.update');
+    
+    Route::get('agencies/{agency}/settings', [\App\Http\Controllers\Settings\AgencySettingsController::class, 'index'])->name('agencies.settings');
+    Route::post('agencies/{agency}/settings', [\App\Http\Controllers\Settings\AgencySettingsController::class, 'update'])->name('agencies.settings.update');
     
     Route::get('api/clients', function (\Illuminate\Http\Request $request) {
         $agencyId = $request->get('agency_id');

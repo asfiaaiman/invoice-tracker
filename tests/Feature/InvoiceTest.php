@@ -86,6 +86,7 @@ test('invoice creation auto-generates invoice number when empty', function () {
     $this->actingAs($user);
 
     $agency = Agency::factory()->create();
+    $agency->update(['invoice_number_prefix' => 'INV']);
     $client = Client::factory()->create();
     $client->agencies()->attach($agency->id);
     $product = Product::factory()->create();

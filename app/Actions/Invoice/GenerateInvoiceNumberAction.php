@@ -3,18 +3,18 @@
 namespace App\Actions\Invoice;
 
 use App\Models\Agency;
-use App\Models\Setting;
 use Illuminate\Support\Carbon;
 
 class GenerateInvoiceNumberAction
 {
     public function execute(int $agencyId): string
     {
+        $agency = Agency::findOrFail($agencyId);
         $year = Carbon::now()->year;
         $lastNumber = $this->getLastInvoiceNumber($agencyId, $year);
         $nextNumber = $lastNumber + 1;
 
-        $prefix = Setting::get('invoice_prefix', 'INV', $agencyId);
+        $prefix = $agency->invoice_number_prefix ?? 'INV';
 
         return sprintf('%s-%s-%04d', $prefix, $year, $nextNumber);
     }

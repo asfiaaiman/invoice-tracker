@@ -37,13 +37,20 @@ test('authenticated users can store agency', function () {
         'tax_id' => '105123456',
         'city' => 'Belgrade',
         'country' => 'Serbia',
+        'email' => 'test@agency.com',
+        'phone' => '+381601234567',
+        'invoice_number_prefix' => 'TEST',
     ];
 
     $response = $this->post('/agencies', $data);
     $response->assertRedirect('/agencies');
     $response->assertSessionHas('success');
 
-    $this->assertDatabaseHas('agencies', ['name' => 'Test Agency']);
+    $this->assertDatabaseHas('agencies', [
+        'name' => 'Test Agency',
+        'email' => 'test@agency.com',
+        'invoice_number_prefix' => 'TEST',
+    ]);
 });
 
 test('agency creation requires name', function () {
@@ -65,6 +72,10 @@ test('authenticated users can update agency', function () {
         'tax_id' => $agency->tax_id,
         'city' => $agency->city,
         'country' => $agency->country,
+        'email' => 'updated@agency.com',
+        'phone' => '+381609999999',
+        'invoice_number_prefix' => 'UPD',
+        'is_active' => $agency->is_active,
     ]);
 
     $response->assertRedirect('/agencies');
@@ -73,6 +84,8 @@ test('authenticated users can update agency', function () {
     $this->assertDatabaseHas('agencies', [
         'id' => $agency->id,
         'name' => 'Updated Agency',
+        'email' => 'updated@agency.com',
+        'invoice_number_prefix' => 'UPD',
     ]);
 });
 
@@ -87,5 +100,66 @@ test('authenticated users can delete agency', function () {
     $response->assertSessionHas('success');
 
     $this->assertDatabaseMissing('agencies', ['id' => $agency->id]);
+});
+
+test('authenticated users can toggle agency active status', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create(['is_active' => true]);
+
+    $response = $this->post("/agencies/{$agency->id}/toggle-status");
+    $response->assertRedirect();
+    $response->assertSessionHas('success');
+
+    $agency->refresh();
+    expect($agency->is_active)->toBeFalse();
+
+    $response = $this->post("/agencies/{$agency->id}/toggle-status");
+    $agency->refresh();
+    expect($agency->is_active)->toBeTrue();
+});
+
+test('guests cannot toggle agency status', function () {
+    $agency = Agency::factory()->create();
+
+    $response = $this->post("/agencies/{$agency->id}/toggle-status");
+    $response->assertRedirect('/login');
+});
+
+test('guests cannot access agency settings', function () {
+    $agency = Agency::factory()->create();
+
+    $response = $this->get("/agencies/{$agency->id}/settings");
+    $response->assertRedirect('/login');
+
+    $response = $this->post("/agencies/{$agency->id}/settings");
+    $response->assertRedirect('/login');
+});
+
+test('authenticated users can view and update agency settings', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+
+    $response = $this->get("/agencies/{$agency->id}/settings");
+    $response->assertStatus(200);
+    $response->assertInertia(fn($page) => $page->component('Agencies/Settings'));
+
+    $response = $this->post("/agencies/{$agency->id}/settings", [
+        'settings' => [
+            'custom_setting' => 'custom_value',
+        ],
+    ]);
+
+    $response->assertRedirect("/agencies/{$agency->id}/settings");
+    $response->assertSessionHas('success');
+
+    $this->assertDatabaseHas('settings', [
+        'agency_id' => $agency->id,
+        'key' => 'custom_setting',
+        'value' => 'custom_value',
+    ]);
 });
 

@@ -5,18 +5,18 @@ namespace App\Services;
 use App\Models\Agency;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
-use App\Models\Setting;
 use Illuminate\Support\Carbon;
 
 class InvoiceService
 {
     public function generateInvoiceNumber(int $agencyId): string
     {
+        $agency = Agency::findOrFail($agencyId);
         $year = Carbon::now()->year;
         $lastNumber = $this->getLastInvoiceNumber($agencyId, $year);
         $nextNumber = $lastNumber + 1;
 
-        $prefix = Setting::get('invoice_prefix', 'INV', $agencyId);
+        $prefix = $agency->invoice_number_prefix ?? 'INV';
 
         return sprintf('%s-%s-%04d', $prefix, $year, $nextNumber);
     }

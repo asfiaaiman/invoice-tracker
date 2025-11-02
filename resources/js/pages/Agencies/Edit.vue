@@ -18,6 +18,10 @@ interface Props {
         city?: string;
         zip_code?: string;
         country?: string;
+        email?: string;
+        phone?: string;
+        website?: string;
+        invoice_number_prefix?: string;
         is_active?: boolean;
     };
 }
@@ -36,6 +40,10 @@ const form = useForm({
     city: props.agency.city || '',
     zip_code: props.agency.zip_code || '',
     country: props.agency.country || 'Serbia',
+    email: props.agency.email || '',
+    phone: props.agency.phone || '',
+    website: props.agency.website || '',
+    invoice_number_prefix: props.agency.invoice_number_prefix || 'INV',
     is_active: props.agency.is_active ?? true,
 });
 
@@ -97,6 +105,31 @@ function submit() {
                     <Label for="country">Country</Label>
                     <Input id="country" v-model="form.country" />
                     <InputError :message="form.errors.country" />
+                </div>
+
+                <div>
+                    <Label for="email">Email</Label>
+                    <Input id="email" type="email" v-model="form.email" />
+                    <InputError :message="form.errors.email" />
+                </div>
+
+                <div>
+                    <Label for="phone">Phone</Label>
+                    <Input id="phone" v-model="form.phone" />
+                    <InputError :message="form.errors.phone" />
+                </div>
+
+                <div>
+                    <Label for="website">Website</Label>
+                    <Input id="website" type="url" v-model="form.website" />
+                    <InputError :message="form.errors.website" />
+                </div>
+
+                <div>
+                    <Label for="invoice_number_prefix">Invoice Number Prefix</Label>
+                    <Input id="invoice_number_prefix" v-model="form.invoice_number_prefix" placeholder="INV" />
+                    <InputError :message="form.errors.invoice_number_prefix" />
+                    <p class="text-sm text-gray-500 mt-1">Used for generating invoice numbers (e.g., INV-2025-0001)</p>
                 </div>
 
                 <div class="flex items-center gap-2">

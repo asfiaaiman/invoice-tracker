@@ -193,10 +193,12 @@ test('invoice creation auto-generates per-agency invoice number when empty', fun
     $product->agencies()->attach($agency1->id, ['price' => 100]);
     $product->agencies()->attach($agency2->id, ['price' => 100]);
 
+    $agency1->update(['invoice_number_prefix' => 'INV']);
+    
     Invoice::factory()->create([
         'agency_id' => $agency1->id,
         'client_id' => $client1->id,
-        'invoice_number' => 'INV-2025-0001',
+        'invoice_number' => 'INV-' . now()->year . '-0001',
         'issue_date' => now(),
     ]);
 
@@ -220,7 +222,7 @@ test('invoice creation auto-generates per-agency invoice number when empty', fun
         ->whereYear('issue_date', now()->year)
         ->orderBy('invoice_number', 'desc')
         ->first();
-    expect($invoice->invoice_number)->toBe('INV-2025-0002');
+    expect($invoice->invoice_number)->toBe('INV-' . now()->year . '-0002');
     expect($invoice->agency_id)->toBe($agency1->id);
 });
 
@@ -387,10 +389,13 @@ test('invoice numbers are unique per agency per year', function () {
     $product->agencies()->attach($agency1->id, ['price' => 100]);
     $product->agencies()->attach($agency2->id, ['price' => 100]);
 
+    $agency1->update(['invoice_number_prefix' => 'INV']);
+    $agency2->update(['invoice_number_prefix' => 'INV']);
+    
     Invoice::factory()->create([
         'agency_id' => $agency1->id,
         'client_id' => $client1->id,
-        'invoice_number' => 'INV-2025-0001',
+        'invoice_number' => 'INV-' . now()->year . '-0001',
         'issue_date' => now(),
     ]);
 
@@ -432,7 +437,7 @@ test('invoice numbers are unique per agency per year', function () {
         ->orderBy('invoice_number', 'desc')
         ->first();
 
-    expect($invoice1->invoice_number)->toBe('INV-2025-0002');
-    expect($invoice2->invoice_number)->toBe('INV-2025-0001');
+    expect($invoice1->invoice_number)->toBe('INV-' . now()->year . '-0002');
+    expect($invoice2->invoice_number)->toBe('INV-' . now()->year . '-0001');
 });
 

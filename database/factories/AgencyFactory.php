@@ -18,6 +18,10 @@ class AgencyFactory extends Factory
             'city' => fake()->city(),
             'zip_code' => fake()->postcode(),
             'country' => 'Serbia',
+            'email' => fake()->optional()->companyEmail(),
+            'phone' => fake()->optional()->phoneNumber(),
+            'website' => fake()->optional()->url(),
+            'invoice_number_prefix' => fake()->lexify('???'),
             'is_active' => true,
         ];
     }

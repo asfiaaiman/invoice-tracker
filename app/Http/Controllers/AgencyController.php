@@ -14,7 +14,9 @@ class AgencyController extends Controller
 {
     public function index(): Response
     {
-        $agencies = Agency::latest()->paginate(20);
+        $agencies = Agency::latest()
+            ->select(['id', 'name', 'tax_id', 'city', 'email', 'phone', 'is_active'])
+            ->paginate(20);
 
         return Inertia::render('Agencies/Index', [
             'agencies' => $agencies,
@@ -80,6 +82,21 @@ class AgencyController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Failed to delete agency: ' . $e->getMessage());
+        }
+    }
+
+    public function toggleStatus(Agency $agency)
+    {
+        try {
+            $agency->update(['is_active' => !$agency->is_active]);
+
+            $status = $agency->is_active ? 'activated' : 'deactivated';
+
+            return redirect()->back()
+                ->with('success', "Agency {$status} successfully.");
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to update agency status: ' . $e->getMessage());
         }
     }
 }
