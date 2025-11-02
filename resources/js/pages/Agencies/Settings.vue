@@ -16,7 +16,16 @@ interface Agency {
 
 interface Props {
     agency: Agency;
-    settings: Record<string, string>;
+    settings: {
+        pdv_limit: string;
+        client_max_share_percent: string;
+        min_clients_per_year: string;
+    };
+    defaultSettings: {
+        pdv_limit: string;
+        client_max_share_percent: string;
+        min_clients_per_year: string;
+    };
 }
 
 const props = defineProps<Props>();
@@ -28,7 +37,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const form = useForm({
-    settings: props.settings || {},
+    pdv_limit: props.settings?.pdv_limit || props.defaultSettings?.pdv_limit || '',
+    client_max_share_percent: props.settings?.client_max_share_percent || props.defaultSettings?.client_max_share_percent || '',
+    min_clients_per_year: props.settings?.min_clients_per_year || props.defaultSettings?.min_clients_per_year || '',
 });
 
 function submit() {
@@ -39,43 +50,68 @@ function submit() {
 <template>
     <Head :title="`${agency.name} - Settings`" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="p-6 max-w-2xl">
+        <div class="p-6 max-w-3xl">
             <FlashMessage />
             <h1 class="text-2xl font-bold mb-6">Agency Settings: {{ agency.name }}</h1>
 
             <ValidationErrors :errors="form.errors" />
 
-            <form @submit.prevent="submit" class="space-y-4">
+            <form @submit.prevent="submit" class="space-y-6">
                 <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        Configure per-agency settings. These settings are specific to this agency and will override default values.
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                        Configure per-agency settings. These settings are specific to this agency and will override default values. These settings are used for business rule validation in reports.
                     </p>
                 </div>
 
                 <div>
-                    <Label for="settings_custom_field_1">Custom Setting 1</Label>
-                    <Input 
-                        id="settings_custom_field_1" 
-                        v-model="form.settings.custom_field_1" 
-                        placeholder="Enter custom setting value"
+                    <Label for="pdv_limit">VAT Threshold (RSD) *</Label>
+                    <Input
+                        id="pdv_limit"
+                        type="number"
+                        v-model="form.pdv_limit"
+                        :placeholder="defaultSettings?.pdv_limit || '6000000'"
                     />
-                    <InputError :message="form.errors['settings.custom_field_1']" />
+                    <p class="text-sm text-gray-500 mt-1">
+                        Default: {{ (parseInt(defaultSettings?.pdv_limit || '6000000')).toLocaleString() }} RSD
+                    </p>
+                    <InputError :message="form.errors.pdv_limit" />
                 </div>
 
                 <div>
-                    <Label for="settings_custom_field_2">Custom Setting 2</Label>
-                    <Input 
-                        id="settings_custom_field_2" 
-                        v-model="form.settings.custom_field_2" 
-                        placeholder="Enter custom setting value"
+                    <Label for="client_max_share_percent">Maximum Client Share (%) *</Label>
+                    <Input
+                        id="client_max_share_percent"
+                        type="number"
+                        v-model="form.client_max_share_percent"
+                        :placeholder="defaultSettings?.client_max_share_percent || '70'"
+                        min="0"
+                        max="100"
                     />
-                    <InputError :message="form.errors['settings.custom_field_2']" />
+                    <p class="text-sm text-gray-500 mt-1">
+                        Default: {{ defaultSettings?.client_max_share_percent || '70' }}%
+                    </p>
+                    <p class="text-xs text-gray-400 mt-1">
+                        No single client may exceed this percentage of the agency's total turnover.
+                    </p>
+                    <InputError :message="form.errors.client_max_share_percent" />
                 </div>
 
-                <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                    <p class="text-sm text-blue-800 dark:text-blue-200">
-                        <strong>Note:</strong> You can add more custom settings as needed. Settings are stored as key-value pairs specific to this agency.
+                <div>
+                    <Label for="min_clients_per_year">Minimum Clients Per Year *</Label>
+                    <Input
+                        id="min_clients_per_year"
+                        type="number"
+                        v-model="form.min_clients_per_year"
+                        :placeholder="defaultSettings?.min_clients_per_year || '5'"
+                        min="1"
+                    />
+                    <p class="text-sm text-gray-500 mt-1">
+                        Default: {{ defaultSettings?.min_clients_per_year || '5' }} clients
                     </p>
+                    <p class="text-xs text-gray-400 mt-1">
+                        Minimum number of different clients that must be invoiced within the measurement period (last 365 days).
+                    </p>
+                    <InputError :message="form.errors.min_clients_per_year" />
                 </div>
 
                 <div class="flex gap-4">

@@ -36,8 +36,9 @@ class ProductController extends Controller
     {
         try {
             $action->execute(
-                $request->except('agency_ids'),
-                $request->agency_ids
+                $request->except(['agency_ids', 'agency_prices']),
+                $request->agency_ids ?? [],
+                $request->agency_prices ?? []
             );
 
             return redirect()->route('products.index')
@@ -62,10 +63,16 @@ class ProductController extends Controller
     {
         $agencies = \App\Models\Agency::where('is_active', true)->get();
         $product->load('agencies');
+        
+        $agencyPrices = [];
+        foreach ($product->agencies as $agency) {
+            $agencyPrices[$agency->id] = $agency->pivot->price;
+        }
 
         return Inertia::render('Products/Edit', [
             'product' => $product,
             'agencies' => $agencies,
+            'agencyPrices' => $agencyPrices,
         ]);
     }
 
@@ -74,8 +81,9 @@ class ProductController extends Controller
         try {
             $action->execute(
                 $product,
-                $request->except('agency_ids'),
-                $request->agency_ids
+                $request->except(['agency_ids', 'agency_prices']),
+                $request->agency_ids ?? [],
+                $request->agency_prices ?? []
             );
 
             return redirect()->route('products.index')

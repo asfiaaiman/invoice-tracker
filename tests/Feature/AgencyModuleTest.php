@@ -315,20 +315,64 @@ test('authenticated users can view agency settings', function () {
         $page->component('Agencies/Settings')
              ->has('agency')
              ->has('settings')
+             ->has('defaultSettings')
     );
 });
 
-test('authenticated users can update agency settings', function () {
+test('agency settings page shows default values when no settings exist', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+
+    $response = $this->get("/agencies/{$agency->id}/settings");
+    $response->assertStatus(200);
+    $response->assertInertia(function ($page) {
+        $defaultSettings = $page->toArray()['props']['defaultSettings'];
+        expect($defaultSettings['pdv_limit'])->toBe('6000000');
+        expect($defaultSettings['client_max_share_percent'])->toBe('70');
+        expect($defaultSettings['min_clients_per_year'])->toBe('5');
+    });
+});
+
+test('agency settings page shows existing settings when they exist', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+    
+    \App\Models\Setting::create([
+        'agency_id' => $agency->id,
+        'key' => 'pdv_limit',
+        'value' => '7000000',
+    ]);
+    
+    \App\Models\Setting::create([
+        'agency_id' => $agency->id,
+        'key' => 'client_max_share_percent',
+        'value' => '75',
+    ]);
+
+    $response = $this->get("/agencies/{$agency->id}/settings");
+    $response->assertStatus(200);
+    $response->assertInertia(function ($page) {
+        $settings = $page->toArray()['props']['settings'];
+        expect($settings['pdv_limit'])->toBe('7000000');
+        expect($settings['client_max_share_percent'])->toBe('75');
+        expect($settings['min_clients_per_year'])->toBe('5');
+    });
+});
+
+test('authenticated users can update agency settings with all three settings', function () {
     $user = User::factory()->create();
     $this->actingAs($user);
 
     $agency = Agency::factory()->create();
 
     $response = $this->post("/agencies/{$agency->id}/settings", [
-        'settings' => [
-            'custom_field_1' => 'value1',
-            'custom_field_2' => 'value2',
-        ],
+        'pdv_limit' => '7000000',
+        'client_max_share_percent' => '75',
+        'min_clients_per_year' => '6',
     ]);
 
     $response->assertRedirect("/agencies/{$agency->id}/settings");
@@ -336,29 +380,174 @@ test('authenticated users can update agency settings', function () {
 
     $this->assertDatabaseHas('settings', [
         'agency_id' => $agency->id,
-        'key' => 'custom_field_1',
-        'value' => 'value1',
+        'key' => 'pdv_limit',
+        'value' => '7000000',
     ]);
 
     $this->assertDatabaseHas('settings', [
         'agency_id' => $agency->id,
-        'key' => 'custom_field_2',
-        'value' => 'value2',
+        'key' => 'client_max_share_percent',
+        'value' => '75',
+    ]);
+
+    $this->assertDatabaseHas('settings', [
+        'agency_id' => $agency->id,
+        'key' => 'min_clients_per_year',
+        'value' => '6',
     ]);
 });
 
-test('agency settings update can handle empty settings', function () {
+test('agency settings update requires all three fields', function () {
     $user = User::factory()->create();
     $this->actingAs($user);
 
     $agency = Agency::factory()->create();
 
     $response = $this->post("/agencies/{$agency->id}/settings", [
-        'settings' => [],
+        'pdv_limit' => 7000000,
+    ]);
+
+    $response->assertStatus(302);
+    $response->assertInvalid(['client_max_share_percent', 'min_clients_per_year']);
+});
+
+test('agency settings update validates numeric values', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+
+    $response = $this->post("/agencies/{$agency->id}/settings", [
+        'pdv_limit' => 'not-a-number',
+        'client_max_share_percent' => 'not-a-number',
+        'min_clients_per_year' => 'not-a-number',
+    ]);
+
+    $response->assertStatus(302);
+    $response->assertInvalid(['pdv_limit', 'client_max_share_percent', 'min_clients_per_year']);
+});
+
+test('agency settings update validates client max share percent range', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+
+    $response = $this->post("/agencies/{$agency->id}/settings", [
+        'pdv_limit' => 7000000,
+        'client_max_share_percent' => 150,
+        'min_clients_per_year' => 5,
+    ]);
+
+    $response->assertInvalid('client_max_share_percent');
+});
+
+test('agency settings update validates min clients per year minimum', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+
+    $response = $this->post("/agencies/{$agency->id}/settings", [
+        'pdv_limit' => 7000000,
+        'client_max_share_percent' => 70,
+        'min_clients_per_year' => 0,
+    ]);
+
+    $response->assertInvalid('min_clients_per_year');
+});
+
+test('agency settings update accepts numeric values converted to strings', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+
+    $response = $this->post("/agencies/{$agency->id}/settings", [
+        'pdv_limit' => '7000000',
+        'client_max_share_percent' => '75',
+        'min_clients_per_year' => '6',
+    ]);
+
+    $response->assertRedirect(route('agencies.settings', $agency));
+    $response->assertSessionHas('success');
+
+    $this->assertDatabaseHas('settings', [
+        'agency_id' => $agency->id,
+        'key' => 'pdv_limit',
+        'value' => '7000000',
+    ]);
+});
+
+test('agency settings can be updated multiple times', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create();
+
+    $this->post("/agencies/{$agency->id}/settings", [
+        'pdv_limit' => '7000000',
+        'client_max_share_percent' => '75',
+        'min_clients_per_year' => '6',
+    ]);
+
+    $response = $this->post("/agencies/{$agency->id}/settings", [
+        'pdv_limit' => '8000000',
+        'client_max_share_percent' => '80',
+        'min_clients_per_year' => '7',
     ]);
 
     $response->assertRedirect("/agencies/{$agency->id}/settings");
-    $response->assertSessionHas('success');
+    
+    $this->assertDatabaseHas('settings', [
+        'agency_id' => $agency->id,
+        'key' => 'pdv_limit',
+        'value' => '8000000',
+    ]);
+    
+    $this->assertDatabaseHas('settings', [
+        'agency_id' => $agency->id,
+        'key' => 'client_max_share_percent',
+        'value' => '80',
+    ]);
+});
+
+test('agency settings are agency-specific', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency1 = Agency::factory()->create();
+    $agency2 = Agency::factory()->create();
+
+    $this->post("/agencies/{$agency1->id}/settings", [
+        'pdv_limit' => '7000000',
+        'client_max_share_percent' => '75',
+        'min_clients_per_year' => '6',
+    ]);
+
+    $this->post("/agencies/{$agency2->id}/settings", [
+        'pdv_limit' => '9000000',
+        'client_max_share_percent' => '85',
+        'min_clients_per_year' => '8',
+    ]);
+
+    $this->assertDatabaseHas('settings', [
+        'agency_id' => $agency1->id,
+        'key' => 'pdv_limit',
+        'value' => '7000000',
+    ]);
+
+    $this->assertDatabaseHas('settings', [
+        'agency_id' => $agency2->id,
+        'key' => 'pdv_limit',
+        'value' => '9000000',
+    ]);
+
+    $settingsCount1 = \App\Models\Setting::where('agency_id', $agency1->id)->count();
+    $settingsCount2 = \App\Models\Setting::where('agency_id', $agency2->id)->count();
+    
+    expect($settingsCount1)->toBe(3);
+    expect($settingsCount2)->toBe(3);
 });
 
 test('agencies index displays contact information', function () {
@@ -388,4 +577,5 @@ test('agencies index displays contact information', function () {
     
     expect($found)->not->toBeNull();
 });
+
 

@@ -30,10 +30,10 @@ const form = useForm({
     unit: 'hour',
     code: '',
     agency_ids: [] as number[],
+    agency_prices: {} as Record<number, number | string>,
 });
 
 function submit() {
-    // Ensure agency_ids is sent as an array even if empty
     if (!Array.isArray(form.agency_ids)) {
         form.agency_ids = [];
     }
@@ -53,11 +53,25 @@ const toggleAgency = (agencyId: number, event?: Event) => {
     const currentIds = form.agency_ids || [];
     if (currentIds.includes(agencyId)) {
         form.agency_ids = currentIds.filter((id: number) => id !== agencyId);
+        delete form.agency_prices[agencyId];
     } else {
         form.agency_ids = [...currentIds, agencyId];
+        if (!form.agency_prices[agencyId]) {
+            form.agency_prices[agencyId] = form.price || '';
+        }
     }
-    // Force form to recognize the change
     form.agency_ids = [...form.agency_ids];
+};
+
+const updateAgencyPrice = (agencyId: number, value: string) => {
+    if (value === '' || value === null) {
+        form.agency_prices[agencyId] = '';
+    } else {
+        const numValue = parseFloat(value);
+        if (!isNaN(numValue)) {
+            form.agency_prices[agencyId] = numValue;
+        }
+    }
 };
 </script>
 
@@ -109,22 +123,39 @@ const toggleAgency = (agencyId: number, event?: Event) => {
 
                 <div>
                     <Label>Agencies *</Label>
-                    <div class="space-y-2 mt-2">
+                    <div class="space-y-3 mt-2">
                         <div
                             v-for="agency in agencies"
                             :key="agency.id"
-                            class="flex items-center space-x-2"
+                            class="border rounded-md p-3"
                         >
-                            <input
-                                type="checkbox"
-                                :id="`agency_${agency.id}`"
-                                :checked="agencyChecked(agency.id)"
-                                @change="toggleAgency(agency.id, $event)"
-                                class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                            />
-                            <Label :for="`agency_${agency.id}`" class="font-normal cursor-pointer">
-                                {{ agency.name }}
-                            </Label>
+                            <div class="flex items-center space-x-2 mb-2">
+                                <input
+                                    type="checkbox"
+                                    :id="`agency_${agency.id}`"
+                                    :checked="agencyChecked(agency.id)"
+                                    @change="toggleAgency(agency.id, $event)"
+                                    class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <Label :for="`agency_${agency.id}`" class="font-normal cursor-pointer flex-1">
+                                    {{ agency.name }}
+                                </Label>
+                            </div>
+                            <div v-if="agencyChecked(agency.id)" class="ml-6">
+                                <Label :for="`agency_price_${agency.id}`" class="text-sm text-gray-600">
+                                    Agency-specific Price (RSD) - Leave empty to use default price
+                                </Label>
+                                <Input
+                                    :id="`agency_price_${agency.id}`"
+                                    type="number"
+                                    step="0.01"
+                                    :value="form.agency_prices[agency.id] || ''"
+                                    @input="updateAgencyPrice(agency.id, ($event.target as HTMLInputElement).value)"
+                                    placeholder="Leave empty for default"
+                                    class="mt-1"
+                                />
+                                <InputError :message="form.errors[`agency_prices.${agency.id}`]" />
+                            </div>
                         </div>
                     </div>
                     <InputError :message="form.errors.agency_ids" />

@@ -25,6 +25,7 @@ class StoreClientRequest extends FormRequest
             'country' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string'],
             'agency_ids' => ['required', 'array', 'min:1'],
             'agency_ids.*' => ['exists:agencies,id'],
         ];

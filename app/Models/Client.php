@@ -19,6 +19,7 @@ class Client extends Model
         'country',
         'email',
         'phone',
+        'note',
     ];
 
     public function agencies(): BelongsToMany

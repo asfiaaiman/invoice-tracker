@@ -226,3 +226,61 @@ test('client index shows agencies relationship', function () {
     );
 });
 
+test('authenticated users can create client with note field', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create(['is_active' => true]);
+
+    $data = [
+        'name' => 'Client With Note',
+        'note' => 'This is an important note about the client',
+        'agency_ids' => [$agency->id],
+    ];
+
+    $response = $this->post('/clients', $data);
+    $response->assertRedirect('/clients');
+
+    $this->assertDatabaseHas('clients', [
+        'name' => 'Client With Note',
+        'note' => 'This is an important note about the client',
+    ]);
+});
+
+test('authenticated users can update client note field', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $client = Client::factory()->create(['note' => 'Original note']);
+    $agency = Agency::factory()->create(['is_active' => true]);
+    $client->agencies()->attach($agency->id);
+
+    $response = $this->put("/clients/{$client->id}", [
+        'name' => $client->name,
+        'note' => 'Updated note',
+        'agency_ids' => [$agency->id],
+    ]);
+
+    $response->assertRedirect('/clients');
+    $client->refresh();
+    expect($client->note)->toBe('Updated note');
+});
+
+test('client note field is optional', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $agency = Agency::factory()->create(['is_active' => true]);
+
+    $data = [
+        'name' => 'Client Without Note',
+        'agency_ids' => [$agency->id],
+    ];
+
+    $response = $this->post('/clients', $data);
+    $response->assertRedirect('/clients');
+
+    $client = Client::where('name', 'Client Without Note')->first();
+    expect($client->note)->toBeNull();
+});
+

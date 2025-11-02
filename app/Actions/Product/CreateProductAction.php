@@ -7,11 +7,22 @@ use Illuminate\Support\Facades\DB;
 
 class CreateProductAction
 {
-    public function execute(array $data, array $agencyIds): Product
+    public function execute(array $data, array $agencyIds, array $agencyPrices = []): Product
     {
-        return DB::transaction(function () use ($data, $agencyIds) {
+        return DB::transaction(function () use ($data, $agencyIds, $agencyPrices) {
             $product = Product::create($data);
-            $product->agencies()->sync($agencyIds);
+            
+            $syncData = [];
+            foreach ($agencyIds as $agencyId) {
+                $syncData[$agencyId] = [];
+                if (isset($agencyPrices[$agencyId]) && $agencyPrices[$agencyId] !== null && $agencyPrices[$agencyId] !== '') {
+                    $syncData[$agencyId]['price'] = $agencyPrices[$agencyId];
+                } else {
+                    $syncData[$agencyId]['price'] = null;
+                }
+            }
+            
+            $product->agencies()->sync($syncData);
 
             return $product->load('agencies');
         });

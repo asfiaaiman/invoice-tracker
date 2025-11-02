@@ -18,11 +18,14 @@ class UpdateProductRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'code' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],
             'unit' => ['nullable', 'string', 'max:50'],
             'agency_ids' => ['required', 'array', 'min:1'],
             'agency_ids.*' => ['exists:agencies,id'],
+            'agency_prices' => ['nullable', 'array'],
+            'agency_prices.*' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 }

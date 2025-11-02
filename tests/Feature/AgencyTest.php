@@ -145,12 +145,17 @@ test('authenticated users can view and update agency settings', function () {
 
     $response = $this->get("/agencies/{$agency->id}/settings");
     $response->assertStatus(200);
-    $response->assertInertia(fn($page) => $page->component('Agencies/Settings'));
+    $response->assertInertia(fn($page) => 
+        $page->component('Agencies/Settings')
+             ->has('agency')
+             ->has('settings')
+             ->has('defaultSettings')
+    );
 
     $response = $this->post("/agencies/{$agency->id}/settings", [
-        'settings' => [
-            'custom_setting' => 'custom_value',
-        ],
+        'pdv_limit' => '7000000',
+        'client_max_share_percent' => '75',
+        'min_clients_per_year' => '6',
     ]);
 
     $response->assertRedirect("/agencies/{$agency->id}/settings");
@@ -158,8 +163,20 @@ test('authenticated users can view and update agency settings', function () {
 
     $this->assertDatabaseHas('settings', [
         'agency_id' => $agency->id,
-        'key' => 'custom_setting',
-        'value' => 'custom_value',
+        'key' => 'pdv_limit',
+        'value' => '7000000',
+    ]);
+
+    $this->assertDatabaseHas('settings', [
+        'agency_id' => $agency->id,
+        'key' => 'client_max_share_percent',
+        'value' => '75',
+    ]);
+
+    $this->assertDatabaseHas('settings', [
+        'agency_id' => $agency->id,
+        'key' => 'min_clients_per_year',
+        'value' => '6',
     ]);
 });
 
