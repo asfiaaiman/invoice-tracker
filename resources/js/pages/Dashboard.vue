@@ -39,6 +39,7 @@ interface Props {
             total: number;
             thisMonth: number;
             thisYear: number;
+            last365Days?: number;
             trend: number;
         };
     };
@@ -53,6 +54,13 @@ interface Props {
     monthlyRevenue: Array<{
         month: number;
         revenue: number;
+    }>;
+    agencyStats?: Array<{
+        id: number;
+        name: string;
+        invoice_count: number;
+        current_year_revenue: number;
+        last_365_days_revenue: number;
     }>;
 }
 
@@ -117,6 +125,13 @@ const monthNames = [
                     :description="`${formatCurrency(stats.revenue.thisYear)} this year`"
                 />
                 <StatCard
+                    v-if="stats.revenue.last365Days !== undefined"
+                    :title="'Last 365 Days Revenue'"
+                    :value="formatCurrency(stats.revenue.last365Days)"
+                    :icon="DollarSign"
+                    :description="'Rolling 12 months'"
+                />
+                <StatCard
                     :title="'Monthly Revenue'"
                     :value="formatCurrency(stats.revenue.thisMonth)"
                     :icon="TrendingUp"
@@ -127,6 +142,46 @@ const monthNames = [
                         isPositive: stats.revenue.trend >= 0,
                     }"
                 />
+            </div>
+
+            <div v-if="agencyStats && agencyStats.length > 0" class="grid gap-4 md:grid-cols-1">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Agency Revenue Overview</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead class="bg-gray-50 dark:bg-gray-700">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agency</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoices</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Current Year</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last 365 Days</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                    <tr v-for="agency in agencyStats" :key="agency.id">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <Link :href="`/reports/${agency.id}`" class="font-medium hover:underline">
+                                                {{ agency.name }}
+                                            </Link>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">{{ agency.invoice_count }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">{{ formatCurrency(agency.current_year_revenue) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">{{ formatCurrency(agency.last_365_days_revenue) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <Link :href="`/reports/${agency.id}`">
+                                                <Button variant="outline" size="sm">View Report</Button>
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             <div class="grid gap-4 md:grid-cols-2">

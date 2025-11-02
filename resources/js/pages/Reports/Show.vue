@@ -22,6 +22,7 @@ interface Props {
             client_name: string;
             total: number;
             percentage: number;
+            count?: number;
         }>;
         warnings: Array<{
             type: string;
@@ -67,64 +68,112 @@ const breadcrumbs: BreadcrumbItem[] = [
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h2 class="text-lg font-semibold mb-4">Current Year (Jan 1 - Today)</h2>
+                    <h2 class="text-lg font-semibold mb-4">Current Year</h2>
+                    <p class="text-sm text-gray-500 mb-3">January 1 - Today</p>
                     <div class="space-y-2">
                         <div class="flex justify-between">
-                            <span>Total:</span>
+                            <span>Total Revenue:</span>
                             <span class="font-semibold">{{ formatCurrency(report.current_year_total) }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Limit:</span>
-                            <span>{{ formatCurrency(report.vat_threshold) }}</span>
-                        </div>
-                        <div class="flex justify-between border-t pt-2">
-                            <span>Remaining:</span>
-                            <span :class="report.remaining_amount < 0 ? 'text-red-600 font-bold' : 'font-semibold'">
-                                {{ formatCurrency(report.remaining_amount) }}
-                            </span>
                         </div>
                     </div>
                 </div>
 
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <h2 class="text-lg font-semibold mb-4">Last 365 Days</h2>
+                    <p class="text-sm text-gray-500 mb-3">Rolling 12 months</p>
                     <div class="space-y-2">
                         <div class="flex justify-between">
-                            <span>Total:</span>
+                            <span>Total Revenue:</span>
                             <span class="font-semibold">{{ formatCurrency(report.last_365_days_total) }}</span>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between text-xs text-gray-500">
                             <span>Period:</span>
-                            <span class="text-sm">{{ report.period_start }} to {{ report.period_end }}</span>
+                            <span>{{ report.period_start }} to {{ report.period_end }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold mb-4">VAT Threshold</h2>
+                    <p class="text-sm text-gray-500 mb-3">Remaining until limit</p>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span>Threshold:</span>
+                            <span>{{ formatCurrency(report.vat_threshold) }}</span>
+                        </div>
+                        <div class="flex justify-between border-t pt-2">
+                            <span>Remaining:</span>
+                            <span :class="report.remaining_amount < 0 ? 'text-red-600 font-bold' : report.remaining_amount < (report.vat_threshold * 0.1) ? 'text-yellow-600 font-bold' : 'font-semibold'">
+                                {{ formatCurrency(report.remaining_amount) }}
+                            </span>
+                        </div>
+                        <div class="mt-2">
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                                <div
+                                    class="h-2.5 rounded-full"
+                                    :class="report.remaining_amount < 0 ? 'bg-red-600' : report.remaining_amount < (report.vat_threshold * 0.1) ? 'bg-yellow-600' : 'bg-blue-600'"
+                                    :style="{ width: `${Math.min(100, Math.max(0, (report.vat_threshold - report.remaining_amount) / report.vat_threshold * 100))}%` }"
+                                ></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                {{ ((report.vat_threshold - report.remaining_amount) / report.vat_threshold * 100).toFixed(1) }}% used
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div v-if="report.client_structure.length > 0" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 class="text-lg font-semibold mb-4">Client Structure (Last 365 Days)</h2>
+                <h2 class="text-lg font-semibold mb-4">Client Structure Analysis (Last 365 Days)</h2>
+                <p class="text-sm text-gray-600 mb-4">Detailed breakdown of revenue by client with business rule validations</p>
                 <div class="overflow-x-auto">
                     <table class="min-w-full">
                         <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Percentage</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Revenue</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoices</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Share</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                            <tr 
-                                v-for="client in report.client_structure" 
+                            <tr
+                                v-for="client in report.client_structure"
                                 :key="client.client_id"
                                 :class="client.percentage > 70 ? 'bg-red-50 dark:bg-red-900/20' : ''"
                             >
-                                <td class="px-6 py-4 whitespace-nowrap">{{ client.client_name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap font-medium">{{ client.client_name }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">{{ formatCurrency(client.total) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">{{ client.count || 0 }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span :class="client.percentage > 70 ? 'text-red-600 font-bold' : ''">
-                                        {{ client.percentage.toFixed(2) }}%
+                                    <div class="flex items-center gap-2">
+                                        <span :class="client.percentage > 70 ? 'text-red-600 font-bold' : ''">
+                                            {{ client.percentage.toFixed(2) }}%
+                                        </span>
+                                        <div class="w-24 bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                                            <div
+                                                class="h-2 rounded-full"
+                                                :class="client.percentage > 70 ? 'bg-red-600' : 'bg-blue-600'"
+                                                :style="{ width: `${Math.min(100, client.percentage)}%` }"
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span
+                                        v-if="client.percentage > 70"
+                                        class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                    >
+                                        Exceeds Limit
+                                    </span>
+                                    <span
+                                        v-else
+                                        class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                    >
+                                        OK
                                     </span>
                                 </td>
                             </tr>

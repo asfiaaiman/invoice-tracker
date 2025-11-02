@@ -22,7 +22,8 @@ class GenerateAgencyReportAction
             ->whereNull('deleted_at')
             ->get();
 
-        $last365DaysInvoices = Invoice::where('agency_id', $agencyId)
+        $last365DaysInvoices = Invoice::with('client')
+            ->where('agency_id', $agencyId)
             ->where('issue_date', '>=', $last365DaysStart)
             ->whereNull('deleted_at')
             ->get();
@@ -57,10 +58,14 @@ class GenerateAgencyReportAction
         foreach ($invoices as $invoice) {
             $clientId = $invoice->client_id;
 
+            if (!$invoice->client) {
+                continue;
+            }
+
             if (!isset($clients[$clientId])) {
                 $clients[$clientId] = [
                     'client_id' => $clientId,
-                    'client_name' => $invoice->client->name,
+                    'client_name' => $invoice->client->name ?? 'Unknown Client',
                     'total' => 0,
                     'count' => 0,
                 ];
@@ -94,7 +99,7 @@ class GenerateAgencyReportAction
             $warnings[] = [
                 'type' => 'min_clients',
                 'message' => sprintf(
-                    'Agency has only %d client(s). Minimum required is %d.',
+                    'Agency has only %d client(s) with invoices in the last 365 days. Minimum required is %d.',
                     $uniqueClients,
                     $minClients
                 ),

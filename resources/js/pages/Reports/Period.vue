@@ -5,10 +5,9 @@ import { Head, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import FlashMessage from '@/components/FlashMessage.vue';
 import { formatCurrency } from '@/composables/useCurrency';
-import { reactive, ref } from 'vue';
+import { reactive } from 'vue';
 
 interface Agency {
     id: number;
@@ -56,19 +55,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const filters = reactive({
-    agency_id: props.filters.agency_id ? Number(props.filters.agency_id) : null,
-    agency_id_string: props.filters.agency_id ? String(props.filters.agency_id) : null,
+    agency_id: props.filters.agency_id ? String(props.filters.agency_id) : '',
     start_date: props.filters.start_date || '',
     end_date: props.filters.end_date || '',
 });
-
-const selectOpen = ref(false);
-
-// Debug: Watch for open state changes
-import { watch } from 'vue';
-watch(selectOpen, (newVal) => {
-    console.log('[Select] Open state changed:', newVal);
-}, { immediate: true });
 
 function applyPreset(preset: string) {
     const today = new Date();
@@ -97,9 +87,9 @@ function applyPreset(preset: string) {
 
 function applyFilters() {
     router.get('/reports/period', {
-        agency_id: filters.agency_id,
-        start_date: filters.start_date,
-        end_date: filters.end_date,
+        agency_id: filters.agency_id ? Number(filters.agency_id) : null,
+        start_date: filters.start_date || null,
+        end_date: filters.end_date || null,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -118,35 +108,20 @@ function applyFilters() {
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                     <div>
                         <Label for="agency_id">Agency</Label>
-                        <Select
-                            v-model:open="selectOpen"
-                            @update:model-value="(val: string | number | null | undefined) => {
-                                console.log('Select value changed:', val, typeof val);
-                                if (val && val !== '' && val !== null && val !== undefined) {
-                                    filters.agency_id = typeof val === 'number' ? val : parseInt(String(val));
-                                    filters.agency_id_string = String(val);
-                                } else {
-                                    filters.agency_id = null;
-                                    filters.agency_id_string = null;
-                                }
-                            }"
+                        <select
+                            id="agency_id"
+                            v-model="filters.agency_id"
+                            class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select agency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem
-                                    v-for="agency in agencies"
-                                    :key="`agency-${agency.id}`"
-                                    :value="String(agency.id)"
-                                >
-                                    {{ agency.name }}
-                                </SelectItem>
-                                <SelectItem v-if="agencies.length === 0" value="none" disabled>
-                                    No agencies available
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                            <option value="">Select agency</option>
+                            <option
+                                v-for="agency in agencies"
+                                :key="agency.id"
+                                :value="String(agency.id)"
+                            >
+                                {{ agency.name }}
+                            </option>
+                        </select>
                     </div>
 
                     <div>

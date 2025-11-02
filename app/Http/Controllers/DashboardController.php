@@ -18,11 +18,12 @@ class DashboardController extends Controller
         $now = Carbon::now();
         $startOfMonth = $now->copy()->startOfMonth();
         $startOfYear = $now->copy()->startOfYear();
+        $last365DaysStart = $now->copy()->subDays(365);
 
         $totalAgencies = Agency::where('is_active', true)->count();
         $totalClients = Client::count();
         $totalProducts = Product::count();
-        
+
         $totalInvoices = Invoice::whereNull('deleted_at')->count();
         $thisMonthInvoices = Invoice::whereNull('deleted_at')
             ->where('issue_date', '>=', $startOfMonth)
@@ -40,9 +41,13 @@ class DashboardController extends Controller
         $lastMonthRevenue = Invoice::whereNull('deleted_at')
             ->whereBetween('issue_date', [$lastMonthStart, $lastMonthEnd])
             ->sum('total');
-        
+
         $thisYearRevenue = Invoice::whereNull('deleted_at')
             ->where('issue_date', '>=', $startOfYear)
+            ->sum('total');
+
+        $last365DaysRevenue = Invoice::whereNull('deleted_at')
+            ->where('issue_date', '>=', $last365DaysStart)
             ->sum('total');
 
         $recentInvoices = Invoice::with(['agency', 'client'])
@@ -78,6 +83,26 @@ class DashboardController extends Controller
             ? round((($thisMonthRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100, 1)
             : ($thisMonthRevenue > 0 ? 100 : 0);
 
+        $agencyStats = Agency::where('is_active', true)->withCount('invoices')->get()->map(function ($agency) use ($now, $startOfYear, $last365DaysStart) {
+            $agencyCurrentYear = Invoice::where('agency_id', $agency->id)
+                ->whereNull('deleted_at')
+                ->where('issue_date', '>=', $startOfYear)
+                ->sum('total');
+
+            $agencyLast365 = Invoice::where('agency_id', $agency->id)
+                ->whereNull('deleted_at')
+                ->where('issue_date', '>=', $last365DaysStart)
+                ->sum('total');
+
+            return [
+                'id' => $agency->id,
+                'name' => $agency->name,
+                'invoice_count' => $agency->invoices_count,
+                'current_year_revenue' => round($agencyCurrentYear, 2),
+                'last_365_days_revenue' => round($agencyLast365, 2),
+            ];
+        })->sortByDesc('last_365_days_revenue')->values();
+
         return Inertia::render('Dashboard', [
             'stats' => [
                 'agencies' => [
@@ -102,11 +127,13 @@ class DashboardController extends Controller
                     'total' => round($totalRevenue, 2),
                     'thisMonth' => round($thisMonthRevenue, 2),
                     'thisYear' => round($thisYearRevenue, 2),
+                    'last365Days' => round($last365DaysRevenue, 2),
                     'trend' => $revenueTrend,
                 ],
             ],
             'recentInvoices' => $recentInvoices,
             'monthlyRevenue' => $monthlyRevenue,
+            'agencyStats' => $agencyStats,
         ]);
     }
 }
