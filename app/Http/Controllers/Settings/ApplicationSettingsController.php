@@ -26,9 +26,16 @@ class ApplicationSettingsController extends Controller
     public function update(UpdateApplicationSettingsRequest $request)
     {
         try {
+            $settingsData = $request->only(['pdv_limit', 'client_max_share_percent', 'min_clients_per_year', 'invoice_number_prefix']);
+            
+            // Ensure invoice_number_prefix is included even if empty
+            if ($request->has('invoice_number_prefix')) {
+                $settingsData['invoice_number_prefix'] = $request->input('invoice_number_prefix');
+            }
+            
             $this->updateSettingsAction->execute(
                 $request->agency_id,
-                $request->only(['pdv_limit', 'client_max_share_percent', 'min_clients_per_year'])
+                $settingsData
             );
 
             return redirect()->route('settings.application')

@@ -5,10 +5,11 @@ import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { logout } from '@/routes';
 import { send } from '@/routes/verification';
-import { Form, Head } from '@inertiajs/vue3';
+import { Form, Head, Link } from '@inertiajs/vue3';
 
-defineProps<{
+const props = defineProps<{
     status?: string;
+    isLocal?: boolean;
 }>();
 </script>
 
@@ -25,6 +26,20 @@ defineProps<{
         >
             A new verification link has been sent to the email address you
             provided during registration.
+        </div>
+
+        <div
+            v-if="isLocal"
+            class="mb-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 p-4 text-center text-sm text-yellow-800 dark:text-yellow-200"
+        >
+            <p class="font-medium mb-2">Development Mode</p>
+            <p class="mb-3">Email verification is disabled in local development.</p>
+            <Link
+                href="/dev/verify-email"
+                class="inline-block rounded bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700"
+            >
+                Verify Email Now
+            </Link>
         </div>
 
         <Form

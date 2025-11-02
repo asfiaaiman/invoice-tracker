@@ -20,11 +20,13 @@ interface Props {
         pdv_limit: string;
         client_max_share_percent: string;
         min_clients_per_year: string;
+        invoice_number_prefix: string;
     };
     defaultSettings: {
         pdv_limit: string;
         client_max_share_percent: string;
         min_clients_per_year: string;
+        invoice_number_prefix: string;
     };
 }
 
@@ -40,6 +42,7 @@ const form = useForm({
     pdv_limit: props.settings?.pdv_limit || props.defaultSettings?.pdv_limit || '',
     client_max_share_percent: props.settings?.client_max_share_percent || props.defaultSettings?.client_max_share_percent || '',
     min_clients_per_year: props.settings?.min_clients_per_year || props.defaultSettings?.min_clients_per_year || '',
+    invoice_number_prefix: props.settings?.invoice_number_prefix || props.defaultSettings?.invoice_number_prefix || '',
 });
 
 function submit() {
@@ -112,6 +115,25 @@ function submit() {
                         Minimum number of different clients that must be invoiced within the measurement period (last 365 days).
                     </p>
                     <InputError :message="form.errors.min_clients_per_year" />
+                </div>
+
+                <div>
+                    <Label for="invoice_number_prefix">Invoice Number Prefix</Label>
+                    <Input
+                        id="invoice_number_prefix"
+                        type="text"
+                        v-model="form.invoice_number_prefix"
+                        :placeholder="defaultSettings?.invoice_number_prefix || 'INV'"
+                        maxlength="20"
+                        class="uppercase"
+                    />
+                    <p class="text-sm text-gray-500 mt-1">
+                        Default: {{ defaultSettings?.invoice_number_prefix || 'INV' }}
+                    </p>
+                    <p class="text-xs text-gray-400 mt-1">
+                        Prefix used for auto-generated invoice numbers. Format: PREFIX-YYYY-#### (e.g., INV-2024-0001). Only uppercase letters, numbers, hyphens, and underscores allowed.
+                    </p>
+                    <InputError :message="form.errors.invoice_number_prefix" />
                 </div>
 
                 <div class="flex gap-4">

@@ -332,6 +332,7 @@ test('agency settings page shows default values when no settings exist', functio
         expect($defaultSettings['pdv_limit'])->toBe('6000000');
         expect($defaultSettings['client_max_share_percent'])->toBe('70');
         expect($defaultSettings['min_clients_per_year'])->toBe('5');
+        expect($defaultSettings['invoice_number_prefix'])->toBe('INV');
     });
 });
 
@@ -339,7 +340,9 @@ test('agency settings page shows existing settings when they exist', function ()
     $user = User::factory()->create();
     $this->actingAs($user);
 
-    $agency = Agency::factory()->create();
+    $agency = Agency::factory()->create([
+        'invoice_number_prefix' => 'CUSTOM',
+    ]);
     
     \App\Models\Setting::create([
         'agency_id' => $agency->id,
@@ -360,10 +363,11 @@ test('agency settings page shows existing settings when they exist', function ()
         expect($settings['pdv_limit'])->toBe('7000000');
         expect($settings['client_max_share_percent'])->toBe('75');
         expect($settings['min_clients_per_year'])->toBe('5');
+        expect($settings['invoice_number_prefix'])->toBe('CUSTOM');
     });
 });
 
-test('authenticated users can update agency settings with all three settings', function () {
+test('authenticated users can update agency settings with all settings including invoice prefix', function () {
     $user = User::factory()->create();
     $this->actingAs($user);
 
@@ -373,6 +377,7 @@ test('authenticated users can update agency settings with all three settings', f
         'pdv_limit' => '7000000',
         'client_max_share_percent' => '75',
         'min_clients_per_year' => '6',
+        'invoice_number_prefix' => 'CUSTOM',
     ]);
 
     $response->assertRedirect("/agencies/{$agency->id}/settings");
@@ -394,6 +399,11 @@ test('authenticated users can update agency settings with all three settings', f
         'agency_id' => $agency->id,
         'key' => 'min_clients_per_year',
         'value' => '6',
+    ]);
+
+    $this->assertDatabaseHas('agencies', [
+        'id' => $agency->id,
+        'invoice_number_prefix' => 'CUSTOM',
     ]);
 });
 

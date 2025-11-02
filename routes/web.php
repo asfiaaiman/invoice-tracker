@@ -69,4 +69,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('api.products');
 });
 
+// Local development email verification helper
+if (app()->environment('local')) {
+    Route::middleware('auth')->group(function () {
+        Route::get('/dev/verify-email', function () {
+            $user = auth()->user();
+            
+            if ($user->hasVerifiedEmail()) {
+                return redirect()->route('dashboard')
+                    ->with('success', 'Your email is already verified.');
+            }
+
+            $user->markEmailAsVerified();
+
+            return redirect()->route('dashboard')
+                ->with('success', 'Email verified successfully! (Development mode)');
+        })->name('dev.verify-email');
+    });
+}
+
 require __DIR__.'/settings.php';

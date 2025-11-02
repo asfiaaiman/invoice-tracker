@@ -64,6 +64,7 @@ class FortifyServiceProvider extends ServiceProvider
 
         Fortify::verifyEmailView(fn (Request $request) => Inertia::render('auth/VerifyEmail', [
             'status' => $request->session()->get('status'),
+            'isLocal' => app()->environment('local'),
         ]));
 
         Fortify::registerView(fn () => Inertia::render('auth/Register'));
@@ -78,14 +79,36 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureRateLimiting(): void
     {
+        // Rate limit for two-factor authentication
         RateLimiter::for('two-factor', function (Request $request) {
             return Limit::perMinute(5)->by($request->session()->get('login.id'));
         });
 
+        // Rate limit for login attempts
         RateLimiter::for('login', function (Request $request) {
-            $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
+            $email = (string) $request->input(Fortify::username());
+            $throttleKey = Str::transliterate(Str::lower($email).'|'.$request->ip());
 
             return Limit::perMinute(5)->by($throttleKey);
+        });
+
+        // Rate limit for password reset requests
+        RateLimiter::for('password-reset', function (Request $request) {
+            $email = (string) $request->input('email');
+            $throttleKey = Str::transliterate(Str::lower($email).'|'.$request->ip());
+
+            return Limit::perMinute(5)->by($throttleKey);
+        });
+
+        // Rate limit for email verification requests
+        RateLimiter::for('email-verification', function (Request $request) {
+            $user = $request->user();
+            return Limit::perHour(3)->by($user?->id ?? $request->ip());
+        });
+
+        // Rate limit for registration
+        RateLimiter::for('registration', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
         });
     }
 }

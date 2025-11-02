@@ -11,6 +11,8 @@ class GetApplicationSettingsAction
     private const DEFAULT_CLIENT_MAX_SHARE = '70';
     private const DEFAULT_MIN_CLIENTS = '5';
 
+    private const DEFAULT_INVOICE_PREFIX = 'INV';
+
     public function execute(): array
     {
         $agencies = Agency::where('is_active', true)->get();
@@ -19,6 +21,7 @@ class GetApplicationSettingsAction
             'pdv_limit' => self::DEFAULT_PDV_LIMIT,
             'client_max_share_percent' => self::DEFAULT_CLIENT_MAX_SHARE,
             'min_clients_per_year' => self::DEFAULT_MIN_CLIENTS,
+            'invoice_number_prefix' => self::DEFAULT_INVOICE_PREFIX,
         ];
 
         $settings = [];
@@ -27,6 +30,7 @@ class GetApplicationSettingsAction
                 'pdv_limit' => Setting::get('pdv_limit', self::DEFAULT_PDV_LIMIT, $agency->id),
                 'client_max_share_percent' => Setting::get('client_max_share_percent', self::DEFAULT_CLIENT_MAX_SHARE, $agency->id),
                 'min_clients_per_year' => Setting::get('min_clients_per_year', self::DEFAULT_MIN_CLIENTS, $agency->id),
+                'invoice_number_prefix' => $agency->invoice_number_prefix ?? self::DEFAULT_INVOICE_PREFIX,
             ];
         }
 

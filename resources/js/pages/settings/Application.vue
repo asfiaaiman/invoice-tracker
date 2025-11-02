@@ -20,11 +20,13 @@ interface Props {
         pdv_limit: string;
         client_max_share_percent: string;
         min_clients_per_year: string;
+        invoice_number_prefix: string;
     }>;
     defaultSettings: {
         pdv_limit: string;
         client_max_share_percent: string;
         min_clients_per_year: string;
+        invoice_number_prefix: string;
     };
 }
 
@@ -40,6 +42,7 @@ const form = useForm({
     pdv_limit: '',
     client_max_share_percent: '',
     min_clients_per_year: '',
+    invoice_number_prefix: '',
 });
 
 function loadAgencySettings(agencyId: number) {
@@ -48,6 +51,7 @@ function loadAgencySettings(agencyId: number) {
     form.pdv_limit = settings.pdv_limit;
     form.client_max_share_percent = settings.client_max_share_percent;
     form.min_clients_per_year = settings.min_clients_per_year;
+    form.invoice_number_prefix = settings.invoice_number_prefix;
 }
 
 function submit() {
@@ -124,6 +128,23 @@ if (props.agencies.length > 0) {
                         min="1"
                     />
                     <p class="text-sm text-gray-500 mt-1">Default: 5 clients</p>
+                </div>
+
+                <div>
+                    <Label for="invoice_number_prefix">Invoice Number Prefix</Label>
+                    <Input
+                        id="invoice_number_prefix"
+                        type="text"
+                        v-model="form.invoice_number_prefix"
+                        placeholder="INV"
+                        maxlength="20"
+                        class="uppercase"
+                        @input="form.invoice_number_prefix = form.invoice_number_prefix.toUpperCase()"
+                    />
+                    <p class="text-sm text-gray-500 mt-1">Default: INV</p>
+                    <p class="text-xs text-gray-400 mt-1">
+                        Prefix used for auto-generated invoice numbers. Format: PREFIX-YYYY-#### (e.g., INV-2024-0001). Only uppercase letters, numbers, hyphens, and underscores allowed.
+                    </p>
                 </div>
 
                 <div class="flex gap-4">
